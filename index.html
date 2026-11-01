@@ -1,0 +1,134 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CropWatch – Agricultural Surveillance</title>
+<style>
+:root{--bg:#f4f7f2;--card:#fff;--tx:#1d2a1d;--mu:#5d6b5d;--ac:#2f7d32;--bd:#d9e2d6;--wa:#b26a00;--er:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121a12;--card:#1b251b;--tx:#e6efe4;--mu:#9bab99;--ac:#6fcf73;--bd:#2c3a2c;--wa:#f0b255;--er:#ff8a80}}
+:root[data-theme="dark"]{--bg:#121a12;--card:#1b251b;--tx:#e6efe4;--mu:#9bab99;--ac:#6fcf73;--bd:#2c3a2c;--wa:#f0b255;--er:#ff8a80}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;max-width:1000px;margin:auto}
+h1{font-size:20px;margin:0}h2{font-size:16px;margin:0 0 10px}
+.sub{color:var(--mu);font-size:13px}
+main{max-width:1000px;margin:auto;padding:0 18px 30px;display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:800px){main{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px}
+button,.btn{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:16px;cursor:pointer;min-height:48px}
+@media(prefers-color-scheme:dark){button,.btn{color:#0b160b}}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+canvas,img.pv{max-width:100%;border-radius:10px;display:block}
+#drop{border:2px dashed var(--bd);border-radius:12px;padding:20px;text-align:center;color:var(--mu)}
+.res{font-size:22px;font-weight:700;margin:6px 0}
+.bar{height:10px;background:var(--bd);border-radius:6px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--ac)}
+.warn{color:var(--wa)}.err{color:var(--er)}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:8px;border-bottom:1px solid var(--bd);text-align:left}
+.th{width:48px;height:48px;object-fit:cover;border-radius:6px}
+</style></head><body>
+<header><div><h1>🌿 CropWatch</h1><div class="sub" id="tag"></div></div>
+<div class="row"><button class="sec" id="lg">हिन्दी</button></div></header>
+<main>
+<section class="card"><h2 id="t1"></h2>
+<div id="drop"><p id="hint"></p><div class="row" style="justify-content:center">
+<label class="btn" id="cam"></label><label class="btn sec" style="background:transparent;color:inherit;border:1px solid var(--bd)" id="gal"></label></div></div>
+<input id="fc" type="file" accept="image/*" capture="environment" hidden>
+<input id="fg" type="file" accept="image/*" hidden>
+<select id="crop" style="margin-top:12px;width:100%;padding:12px;font-size:16px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)"><option value="">Any crop / कोई भी फसल</option><option value="tomato">Tomato / टमाटर</option><option value="potato">Potato / आलू</option><option value="wheat">Wheat / गेहूँ</option><option value="maize">Maize / मक्का</option><option value="rice">Rice / धान</option><option value="cotton">Cotton / कपास</option><option value="chilli">Chilli / मिर्च</option></select>
+<div class="row" style="margin-top:10px"><input id="field" placeholder="Field name / खेत का नाम" style="flex:1;min-width:140px;padding:12px;font-size:16px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)"><select id="light" style="flex:1;min-width:140px;padding:12px;font-size:16px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)"><option value="">Lighting / रोशनी</option><option>Direct sun</option><option>Overcast</option><option>Low sun</option><option>Shade</option><option>Backlit</option><option>Low light</option></select></div>
+<label class="sub" style="display:block;margin-top:8px"><input type="checkbox" id="gps"> 📍 Tag location (GPS) / स्थान जोड़ें</label>
+<p class="sub" id="tips"></p></section>
+<section class="card"><h2 id="t2"></h2><canvas id="cv" width="224" height="224" style="width:100%;max-width:320px"></canvas>
+<div id="out"></div></section>
+<section class="card wide"><div class="row" style="justify-content:space-between;align-items:center"><h2 id="t3" style="margin:0"></h2>
+<div class="row"><button class="sec" id="ex"></button><button class="sec" id="cl"></button></div></div>
+<div class="wrap"><table id="hist"></table></div></section>
+<section class="card wide"><h2 id="t4"></h2><div class="wrap"><table id="log"></table></div></section>
+<section class="card wide sub" id="note"></section>
+</main>
+<script>
+const L={en:{tag:"Smartphone vision sensor · works offline on laptop and mobile",t1:"1. Image acquisition",t2:"2. Analysis and result",t3:"History of observations",
+hint:"Place the leaf in the centre, in focus and in natural light.",cam:"📷 Take photo",gal:"🖼 Choose image",
+tips:"Pipeline: capture → quality check → pre-processing → analysis → prediction → display → storage.",
+alt:"Top 3",fbq:"Was this correct?",fby:"Yes",fbn:"No",fbt:"Thanks, feedback saved.",t4:"Field-test log by lighting",lgl:"Lighting",lgn:"Scans",lgu:"Uncertain",lga:"Correct / feedback",chk:"Disease names are suggestions from colour and spot pattern only. Confirm with an expert before treatment.",cls:["Healthy","Nutrient deficiency (yellowing)","Mosaic / mottling (possible virus)","Leaf spot (bacterial / fungal)","Early blight","Late blight","Rust","Powdery mildew"],
+adv:["No action needed. Keep monitoring regularly.","Check soil nutrients and watering. Consult an agriculture expert.","Remove affected plants, control sap-sucking insects, and consult an expert.","Remove spotted leaves, avoid wetting foliage, and ask an expert about a suitable spray.","Remove infected leaves, rotate crops, and ask an expert about a fungicide.","Spreads fast in cool, wet weather. Isolate plants and contact an expert urgently.","Remove badly affected leaves and ask an expert about a fungicide.","Improve air flow, avoid overcrowding, and ask an expert about treatment."],
+blur:"Image is blurry. Hold steady and retake.",dark:"Too dark. Move to better light.",bright:"Too bright or glare. Move to shade.",noleaf:"No leaf detected. Fill the frame with the leaf.",
+use:"Use anyway",unc:"Uncertain result. Retake the image or consult an expert.",conf:"Confidence",green:"Green",yel:"Yellow",brn:"Brown",
+ms:"Processing",time:"Time",res:"Result",empty:"No observations yet.",ex:"Export CSV",cl:"Clear",ask:"Delete all history?",
+note:"Preliminary monitoring aid based on visible colour features. It cannot replace professional agricultural diagnosis. Data stays on this device."},
+hi:{tag:"स्मार्टफोन विज़न सेंसर · लैपटॉप और मोबाइल पर ऑफ़लाइन चलता है",t1:"1. छवि प्राप्ति",t2:"2. विश्लेषण और परिणाम",t3:"अवलोकनों का इतिहास",
+hint:"पत्ती को बीच में रखें, फ़ोकस में और प्राकृतिक रोशनी में।",cam:"📷 फ़ोटो लें",gal:"🖼 चित्र चुनें",
+tips:"प्रक्रिया: छवि → गुणवत्ता जाँच → पूर्व-प्रसंस्करण → विश्लेषण → पूर्वानुमान → परिणाम → संग्रह।",
+alt:"शीर्ष 3",fbq:"क्या यह सही था?",fby:"हाँ",fbn:"नहीं",fbt:"धन्यवाद, प्रतिक्रिया सहेजी गई।",t4:"रोशनी के अनुसार फ़ील्ड-परीक्षण लॉग",lgl:"रोशनी",lgn:"स्कैन",lgu:"अनिश्चित",lga:"सही / प्रतिक्रिया",chk:"रोग के नाम केवल रंग और धब्बों के पैटर्न पर आधारित सुझाव हैं। उपचार से पहले विशेषज्ञ से पुष्टि करें।",cls:["स्वस्थ","पोषक तत्व की कमी (पीलापन)","मोज़ेक / चितकबरापन (संभावित विषाणु)","पत्ती धब्बा (जीवाणु / फफूंद)","अगेती झुलसा","पछेती झुलसा","रतुआ","चूर्णिल आसिता (पाउडरी मिल्ड्यू)"],
+adv:["कोई कार्रवाई ज़रूरी नहीं। नियमित निगरानी रखें।","मिट्टी के पोषक तत्व और सिंचाई जाँचें। कृषि विशेषज्ञ से सलाह लें।","प्रभावित पौधे हटाएँ, रस चूसने वाले कीट रोकें और विशेषज्ञ से मिलें।","धब्बेदार पत्तियाँ हटाएँ, पत्तों को गीला न करें और उचित छिड़काव के लिए विशेषज्ञ से पूछें।","संक्रमित पत्तियाँ हटाएँ, फसल चक्र अपनाएँ और फफूंदनाशी के लिए विशेषज्ञ से पूछें।","ठंडे, नम मौसम में तेज़ी से फैलता है। पौधे अलग करें और तुरंत विशेषज्ञ से संपर्क करें।","अधिक प्रभावित पत्तियाँ हटाएँ और फफूंदनाशी के लिए विशेषज्ञ से पूछें।","हवा का प्रवाह बढ़ाएँ, भीड़ न करें और उपचार के लिए विशेषज्ञ से पूछें।"],
+blur:"चित्र धुंधला है। स्थिर पकड़कर दोबारा लें।",dark:"बहुत अंधेरा है। बेहतर रोशनी में जाएँ।",bright:"बहुत तेज़ रोशनी। छाँव में जाएँ।",noleaf:"पत्ती नहीं मिली। फ़्रेम में पत्ती भरें।",
+use:"फिर भी उपयोग करें",unc:"परिणाम अनिश्चित है। दोबारा फ़ोटो लें या विशेषज्ञ से पूछें।",conf:"विश्वास",green:"हरा",yel:"पीला",brn:"भूरा",
+ms:"प्रसंस्करण",time:"समय",res:"परिणाम",empty:"अभी कोई अवलोकन नहीं।",ex:"CSV निर्यात",cl:"मिटाएँ",ask:"सारा इतिहास हटाएँ?",
+note:"यह दृश्य रंग विशेषताओं पर आधारित प्रारंभिक सहायक है। यह पेशेवर कृषि निदान का विकल्प नहीं है। डेटा इसी डिवाइस पर रहता है।"}};
+let lang="en",cur=null,H=[];const $=i=>document.getElementById(i),T=k=>L[lang][k];
+try{lang=localStorage.getItem("cw_lang")||"en";H=JSON.parse(localStorage.getItem("cw_hist")||"[]")}catch(e){}
+function save(){try{localStorage.setItem("cw_hist",JSON.stringify(H.slice(0,40)))}catch(e){}}
+function ui(){for(const k of["tag","t1","t2","t3","t4","hint","tips","ex","cl","note"])$(k).textContent=T(k);
+$("cam").textContent=T("cam");$("gal").textContent=T("gal");$("lg").textContent=lang=="en"?"हिन्दी":"English";document.documentElement.lang=lang;renderH();if(cur)show(cur)}
+$("cam").onclick=()=>$("fc").click();$("gal").onclick=()=>$("fg").click();
+$("lg").onclick=()=>{lang=lang=="en"?"hi":"en";try{localStorage.setItem("cw_lang",lang)}catch(e){}ui()};
+for(const id of["fc","fg"])$(id).onchange=e=>{const f=e.target.files[0];if(f)load(f);e.target.value=""};
+function load(f){const im=new Image();im.onload=()=>{URL.revokeObjectURL(im.src);run(im)};im.src=URL.createObjectURL(f)}
+function hsv(r,g,b){r/=255;g/=255;b/=255;const m=Math.max(r,g,b),n=Math.min(r,g,b),d=m-n;let h=0;
+if(d){h=m==r?((g-b)/d)%6:m==g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}return[h,m?d/m:0,m]}
+function run(im){const t0=performance.now(),c=$("cv"),x=c.getContext("2d",{willReadFrequently:true});
+x.clearRect(0,0,224,224);const s=Math.max(224/im.width,224/im.height),w=im.width*s,h=im.height*s;
+x.drawImage(im,(224-w)/2,(224-h)/2,w,h);                                   // resize (centre crop)
+const d=x.getImageData(0,0,224,224),p=d.data,N=224*224,gray=new Float32Array(N);let vs=0;
+for(let i=0;i<N;i++){gray[i]=.299*p[4*i]+.587*p[4*i+1]+.114*p[4*i+2];vs+=Math.max(p[4*i],p[4*i+1],p[4*i+2])}
+const br=vs/N/255;let lv=0,lm=0;                                              // blur: variance of Laplacian
+for(let y=1;y<223;y++)for(let xx=1;xx<223;xx++){const i=y*224+xx,v=4*gray[i]-gray[i-1]-gray[i+1]-gray[i-224]-gray[i+224];lv+=v*v;lm++}
+lv/=lm;
+const th={blur:lv<25,dark:br<.2,bright:br>.92};
+// segmentation + colour analysis (HSV)
+const lab=new Uint8Array(N);let leaf=0,g=0,y=0,b=0,ru=0,x0=224,x1=0,y0=224,y1=0;
+for(let i=0;i<N;i++){const[H_,S,V]=hsv(p[4*i],p[4*i+1],p[4*i+2]);let c=0;
+if(S<.15&&V>.8)c=5;else if(S<.2||V<.12)c=0;else if(V<.3)c=3;else if(H_>=70&&H_<=170)c=1;else if(H_>=40&&H_<70)c=2;else if(H_>=10&&H_<40)c=(S>.55&&V>.55&&H_<35)?4:3;
+lab[i]=c;
+if(c>0&&c<5){leaf++;if(c==1)g++;else if(c==2)y++;else if(c==4)ru++;else b++;const px=i%224,py=(i/224)|0;if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py}else p[4*i+3]=70}
+let wb=0;if(leaf)for(let yy=y0;yy<=y1;yy++)for(let xx=x0;xx<=x1;xx++)if(lab[yy*224+xx]==5)wb++;
+x.putImageData(d,0,0);
+const comps=f=>{const seen=new Uint8Array(N),out=[];for(let s=0;s<N;s++){if(seen[s]||!f(lab[s]))continue;let n=0;const st=[s];seen[s]=1;
+while(st.length){const i=st.pop();n++;const px=i%224;for(const j of[px>0?i-1:-1,px<223?i+1:-1,i-224,i+224]){if(j>=0&&j<N&&!seen[j]&&f(lab[j])){seen[j]=1;st.push(j)}}}out.push(n)}return out};
+const sp=comps(c=>c==3||c==4).filter(n=>n>=8),yc=comps(c=>c==2).filter(n=>n>=10);
+let hy=0;for(let i=0;i<N;i++)if(lab[i]==2){const px=i%224;for(const j of[px>2?i-3:-1,px<221?i+3:-1,i-672,i+672]){if(j>=0&&j<N&&(lab[j]==3||lab[j]==4)){hy++;break}}}
+const fr=leaf/N,G=leaf?g/leaf:0,Y=leaf?y/leaf:0,Bf=leaf?(b+ru)/leaf:0,B=Bf,RU=leaf?ru/leaf:0,PM=leaf?wb/(leaf+wb):0;
+const big=leaf&&sp.length?Math.max(...sp)/leaf:0,ns=sp.filter(n=>n<150).length,nm=sp.filter(n=>n>=150&&n<1500).length,ny=yc.length,halo=y?hy/y:0;
+const z=[8*(G-.8)-4*Bf-3*PM,10*Y-1-.1*Math.min(ny,30)-6*Bf,6*Y-1+.12*Math.min(ny,30)-5*Bf,8*Bf-1+.25*Math.min(ns,12)-10*big,8*Bf-1.2+(halo>.3?1.5:0)+(nm>=1&&nm<=8?1:0)-8*big,8*Bf-1+14*big,25*RU-1.5+.1*Math.min(ns,20),14*PM-1.2];
+const cb={tomato:[4,5,3],potato:[4,5],wheat:[6,7],maize:[6,3],rice:[3,5],cotton:[3,2],chilli:[3,2]}[$("crop").value]||[];cb.forEach(i=>z[i]+=1);
+const mx=Math.max(...z),e=z.map(v=>Math.exp(v-mx)),se=e.reduce((a,v)=>a+v,0),pr=e.map(v=>v/se);
+let k=pr.indexOf(Math.max(...pr));const k2=pr.map((v,i)=>[v,i]).filter(a=>a[1]!=k).sort((a,c)=>c[0]-a[0])[0][1];
+cur={ts:Date.now(),k,k2,p2:pr[k2],top3:pr.map((v,i)=>[i,v]).sort((a,c)=>c[1]-a[1]).slice(0,3),field:$("field").value.trim(),light:$("light").value,conf:pr[k],G,Y,B,fr,lv,br,ms:Math.round(performance.now()-t0),issue:th.blur?"blur":th.dark?"dark":th.bright?"bright":fr<.08?"noleaf":"",thumb:thumb(c),ok:false};
+show(cur)}
+function thumb(c){const t=document.createElement("canvas");t.width=t.height=64;t.getContext("2d").drawImage(c,0,0,64,64);try{return t.toDataURL("image/jpeg",.6)}catch(e){return""}}
+function show(r){const o=$("out");let h="";
+if(r.issue&&!r.ok){h=`<p class="res err">⚠ ${T(r.issue)}</p><div class="row"><button id="ua">${T("use")}</button></div>`;o.innerHTML=h;
+$("ua").onclick=()=>{r.ok=true;if(r.issue=="noleaf"&&r.fr<.02){return}show(r);commit(r)};return}
+const low=r.conf<.5;
+h=`<div class="res ${low?"warn":""}">${low?"❓ "+T("unc"):T("cls")[r.k]}</div>
+<div class="sub">${T("conf")}: ${(r.conf*100).toFixed(0)}%</div><div class="bar"><i style="width:${r.conf*100}%"></i></div>
+<div class="sub">${T("green")} ${(r.G*100).toFixed(0)}% · ${T("yel")} ${(r.Y*100).toFixed(0)}% · ${T("brn")} ${(r.B*100).toFixed(0)}%</div>
+<p>${low?"":T("adv")[r.k]}</p><div class="sub">${T("alt")}: ${r.top3.map(a=>T("cls")[a[0]]+" "+(a[1]*100).toFixed(0)+"%").join(" · ")}</div>${!low&&r.k>=3?`<p class="warn sub">${T("chk")}</p>`:""}<div class="sub">${T("ms")}: ${r.ms} ms</div>`;o.innerHTML=h;
+bindFb(r);if(!r.issue&&!r.saved)commit(r)}
+function commit(r){if(r.saved)return;r.saved=1;H.unshift({ts:r.ts,k:low(r)?-1:r.k,conf:r.conf,G:r.G,Y:r.Y,B:r.B,ms:r.ms,thumb:r.thumb,field:r.field,light:r.light,gps:null,fb:null,fl:null});save();renderH();show(r);
+if($("gps").checked&&navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{const e=H.find(h=>h.ts==r.ts);if(e){e.gps=p.coords.latitude.toFixed(4)+" "+p.coords.longitude.toFixed(4);save();renderH()}},()=>{},{timeout:8000})}
+function low(r){return r.conf<.5}
+function bindFb(r){if(!r.saved)return;const e=H.find(h=>h.ts==r.ts);if(!e)return;const o=$("out");
+if(e.fb!=null){o.insertAdjacentHTML("beforeend",`<p class="sub">${T("fbt")}</p>`);return}
+o.insertAdjacentHTML("beforeend",`<div class="row" id="fbr"><span class="sub" style="align-self:center">${T("fbq")}</span>${e.k<0?"":`<button id="fy" class="sec">${T("fby")}</button>`}<button id="fn" class="sec">${T("fbn")}</button></div>`);
+const done=()=>{save();renderH();$("fbr").outerHTML=`<p class="sub">${T("fbt")}</p>`};
+if($("fy"))$("fy").onclick=()=>{e.fb=1;e.fl=e.k;done()};
+$("fn").onclick=()=>{$("fbr").innerHTML=`<select id="fs" style="padding:10px;font-size:16px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx)">${T("cls").map((c,i)=>`<option value="${i}">${c}</option>`).join("")}</select><button id="fk">OK</button>`;$("fk").onclick=()=>{e.fb=0;e.fl=+$("fs").value;done()}}}
+function renderLog(){const m={};for(const r of H){const k=r.light||"-";const c=m[k]=m[k]||{n:0,u:0,f:0,c:0};c.n++;if(r.k<0)c.u++;if(r.fb!=null){c.f++;if(r.fb==1)c.c++}}
+$("log").innerHTML=`<tr><th>${T("lgl")}</th><th>${T("lgn")}</th><th>${T("lgu")}</th><th>${T("lga")}</th></tr>`+Object.keys(m).map(k=>`<tr><td>${k}</td><td>${m[k].n}</td><td>${(m[k].u/m[k].n*100).toFixed(0)}%</td><td>${m[k].f?m[k].c+"/"+m[k].f:"–"}</td></tr>`).join("")}
+function renderH(){renderLog();const t=$("hist");if(!H.length){t.innerHTML=`<tr><td class="sub">${T("empty")}</td></tr>`;return}
+t.innerHTML=H.map(r=>`<tr><td>${r.thumb?`<img class="th" src="${r.thumb}" alt="">`:""}</td><td>${new Date(r.ts).toLocaleString(lang=="hi"?"hi-IN":"en-IN")}</td><td>${r.k<0?"❓ "+T("unc").split(".")[0]:T("cls")[r.k]}</td><td>${(r.conf*100).toFixed(0)}%</td><td>${r.field||""}${r.light?" · "+r.light:""}${r.gps?" 📍":""}</td><td>${r.fb==1?"✅":r.fb==0?"❌ "+(r.fl>=0?T("cls")[r.fl]:""):""}</td></tr>`).join("")}
+$("cl").onclick=()=>{if(H.length&&confirm(T("ask"))){H=[];save();renderH()}};
+$("ex").onclick=()=>{const rows=["time,result,confidence,green,yellow,brown,ms,field,lighting,gps,feedback",...H.map(r=>[new Date(r.ts).toISOString(),r.k<0?"uncertain":L.en.cls[r.k].replace(/,/g," "),r.conf.toFixed(2),r.G.toFixed(2),r.Y.toFixed(2),r.B.toFixed(2),r.ms,(r.field||"").replace(/,/g," "),r.light||"",r.gps||"",r.fb==null?"":r.fb==1?"correct":"wrong"].join(","))];
+const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(rows.join("\n"));a.download="cropwatch_history.csv";a.click()};
+ui();
+</script></body></html>
